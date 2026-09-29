@@ -1,0 +1,6 @@
+id=switch_build_type
+name=Switch Build.TYPE
+version=1.0
+versionCode=1
+author=ynk
+description=Override Build.TYPE per process
