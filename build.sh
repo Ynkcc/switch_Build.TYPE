@@ -17,7 +17,7 @@ if [ "$#" -gt 0 ]; then ABIS=("$@"); else ABIS=(armeabi-v7a arm64-v8a x86 x86_64
 
 rm -rf "$OUT"
 mkdir -p "$STAGE/zygisk"
-cp -f "$ROOT"/module/* "$STAGE/"
+cp -rf "$ROOT"/module/* "$STAGE/"
 for abi in "${ABIS[@]}"; do
     mkdir -p "$STAGE/bin/$abi"
     cp -f "$ROOT/libs/$abi/libswitch_build_type.so" "$STAGE/zygisk/$abi.so"

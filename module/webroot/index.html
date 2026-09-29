@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Switch Build.TYPE</title>
+<style>
+:root{
+  --bg:#0e1014; --card:#171a21; --card2:#1e222b; --fg:#e9ecf1; --dim:#98a1b0;
+  --line:#262b35; --accent:#4c8dff; --ok:#34d399; --warn:#f5a524; --err:#ff5c5c;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f3f5f9; --card:#ffffff; --card2:#eef1f7; --fg:#11151b; --dim:#5f6a7b;
+         --line:#e3e8f0; --accent:#2f6fe4; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg);
+  font:15px/1.55 -apple-system,"Segoe UI",Roboto,"Noto Sans SC","PingFang SC",sans-serif;
+  padding:calc(18px + env(safe-area-inset-top)) 14px calc(32px + env(safe-area-inset-bottom));
+}
+h1{font-size:18px;margin:0;letter-spacing:.2px}
+.hd{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--card2);
+       color:var(--dim);border:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+      padding:16px;margin-bottom:12px}
+.card h2{font-size:13px;color:var(--dim);font-weight:600;margin:0 0 12px;
+         letter-spacing:.4px;text-transform:uppercase}
+.big{font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.15;
+     display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:0 0 auto}
+.dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.16)}
+.dot.off{background:var(--warn)}
+.sub{color:var(--dim);font-size:12.5px;margin-top:8px}
+.seg{display:flex;gap:8px;margin-top:14px}
+.seg button{
+  flex:1;padding:11px 6px;border-radius:11px;border:1px solid var(--line);
+  background:var(--card2);color:var(--fg);font:600 13.5px/1 inherit;cursor:pointer;
+  transition:transform .08s ease,background .15s ease,border-color .15s ease;
+}
+.seg button:active{transform:scale(.97)}
+.seg button.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.rows{display:flex;flex-direction:column;gap:2px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;
+     border-bottom:1px solid var(--line);font-size:13.5px}
+.row:last-child{border-bottom:0}
+.row .k{color:var(--dim)}
+.row .v{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+        text-align:right;word-break:break-all}
+a{color:var(--accent);text-decoration:none}
+.github-link{display:flex;align-items:center;gap:9px;margin-top:14px;padding:11px 13px;
+  border:1px solid var(--line);border-radius:12px;background:var(--card2);color:var(--fg);
+  font-size:13.5px;font-weight:600;text-decoration:none;
+  transition:background .15s ease,border-color .15s ease,transform .08s ease}
+.github-link:active{background:var(--line);transform:scale(.99)}
+.github-link-icon{flex:0 0 auto}
+.github-link-arrow{margin-left:auto;color:var(--dim)}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sw span{font-size:13.5px}
+.sw small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px}
+.toggle{width:46px;height:27px;border-radius:99px;background:var(--card2);
+        border:1px solid var(--line);position:relative;cursor:pointer;flex:0 0 auto;
+        transition:background .18s ease,border-color .18s ease}
+.toggle i{position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;
+          background:var(--dim);transition:transform .18s ease,background .18s ease}
+.toggle.on{background:var(--accent);border-color:var(--accent)}
+.toggle.on i{transform:translateX(19px);background:#fff}
+.foot{color:var(--dim);font-size:11.5px;text-align:center;margin-top:18px}
+#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));
+  transform:translate(-50%,20px);background:#000c;color:#fff;padding:10px 16px;
+  border-radius:99px;font-size:13px;opacity:0;pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease;max-width:88vw;text-align:center;z-index:9}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <h1>Switch Build.TYPE</h1>
+  <span class="badge" id="ver">…</span>
+</div>
+
+<div class="card">
+  <h2>当前状态</h2>
+  <div class="big"><span class="dot" id="dot"></span><span id="cur">…</span></div>
+  <div class="sub" id="curSub">读取中…</div>
+  <div class="seg" id="seg">
+    <button data-v="user">user</button>
+    <button data-v="userdebug">userdebug</button>
+    <button data-v="eng">eng</button>
+  </div>
+  <div class="sub">点击即生效（对之后启动的进程），并写入持久配置。</div>
+</div>
+
+<div class="card">
+  <h2>开机自动</h2>
+  <div class="sw">
+    <span>开机时自动设置
+      <small id="autoSub">读取中…</small>
+    </span>
+    <div class="toggle" id="auto"><i></i></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>关于</h2>
+  <a href="https://github.com/Ynkcc/switch_Build.TYPE" target="_blank" rel="noopener" class="github-link" id="repo">
+    <svg class="github-link-icon" viewBox="0 0 16 16" width="18" height="18"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span>Ynkcc/switch_Build.TYPE</span>
+    <span class="github-link-arrow">↗</span>
+  </a>
+  <div class="sub">在 app 进程内改写 android.os.Build.TYPE，使 WebView 等按 userdebug / eng 构建行为运行。</div>
+</div>
+
+<div class="foot">Zygisk 模块 · WebUI</div>
+<div id="toast"></div>
+
+<script>
+/* ---- KernelSU WebUI API（内联实现，等价于 npm 包 kernelsu 的薄封装） ---- */
+var ksu = window.ksu;
+var _seq = 0;
+
+function apiExec(command, options) {
+  options = options || {};
+  if (!ksu) {
+    return Promise.resolve({ errno: 1, stdout: '', stderr: 'WebUI API 不可用（请在模块管理器中打开）' });
+  }
+  return new Promise(function (resolve, reject) {
+    var name = '_ksu_cb_' + Date.now() + '_' + (_seq++);
+    window[name] = function (errno, stdout, stderr) {
+      delete window[name];
+      resolve({ errno: errno, stdout: stdout || '', stderr: stderr || '' });
+    };
+    try {
+      ksu.exec(command, JSON.stringify(options), name);
+    } catch (e) {
+      delete window[name];
+      reject(e);
+    }
+  });
+}
+
+function apiToast(msg) {
+  if (ksu && ksu.toast) { try { ksu.toast(String(msg)); return; } catch (e) {} }
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(apiToast._t);
+  apiToast._t = setTimeout(function () { t.classList.remove('show'); }, 2200);
+}
+
+/* ---- 常量 ---- */
+var MOD = '/data/adb/modules/switch_build_type';
+var EXT = '/data/adb/switch_build_type.conf';
+var VALUES = ['user', 'userdebug', 'eng'];
+var REPO = 'https://github.com/Ynkcc/switch_Build.TYPE';
+
+/* ---- 状态 ---- */
+var state = { prop: '', enabled: 0, type: '', confFrom: '' };
+
+function $(id) { return document.getElementById(id); }
+
+function parseConf(text) {
+  var out = { enabled: null, type: null };
+  String(text || '').split('\n').forEach(function (line) {
+    var m = /^\s*enabled\s*=\s*(\d+)/.exec(line);
+    if (m) { out.enabled = parseInt(m[1], 10); }
+    m = /^\s*TYPE\s*=\s*([A-Za-z]+)/.exec(line);
+    if (m) { out.type = m[1]; }
+  });
+  return out;
+}
+
+async function refresh() {
+  var rProp = await apiExec('getprop sys.buildtype');
+  var rExt = await apiExec('cat ' + EXT + ' 2>/dev/null');
+  var rMod = await apiExec('cat ' + MOD + '/config.conf 2>/dev/null');
+
+  var extHas = rExt.errno === 0 && rExt.stdout.replace(/\s/g, '') !== '';
+  var conf = parseConf(extHas ? rExt.stdout : rMod.stdout);
+
+  state.prop = rProp.stdout.trim();
+  state.enabled = conf.enabled === 1 ? 1 : 0;
+  state.type = conf.type || '(未配置)';
+  state.confFrom = extHas ? '/data/adb/switch_build_type.conf' : '模块内 config.conf';
+
+  var rVer = await apiExec("sed -n 's/^version=//p' " + MOD + "/module.prop");
+  var ver = rVer.stdout.trim();
+  if (!ver && ksu && ksu.moduleInfo) {
+    try {
+      var mi = JSON.parse(ksu.moduleInfo());
+      ver = mi.version || '';
+    } catch (e) {}
+  }
+
+  render(ver ? 'v' + ver : '');
+}
+
+function render(ver) {
+  $('ver').textContent = ver;
+  $('ver').style.display = ver ? '' : 'none';
+
+  var cur = state.prop || '(未设置)';
+  $('cur').textContent = cur;
+
+  var on = state.enabled === 1 && state.prop && state.prop === state.type;
+  var dot = $('dot');
+  dot.className = 'dot ' + (on ? 'on' : 'off');
+
+  $('curSub').textContent = on
+    ? '生效中 · 目标值 ' + state.type + '（重启后自动恢复）'
+    : (state.enabled === 1
+        ? '已配置为 ' + state.type + '，但当前属性值为 ' + cur
+        : '开机自动已关闭，属性值不会在重启后恢复');
+
+  var btns = document.querySelectorAll('#seg button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('sel', btns[i].dataset.v === state.prop);
+  }
+
+  $('auto').classList.toggle('on', state.enabled === 1);
+  $('autoSub').textContent = (state.enabled === 1 ? '已开启' : '已关闭') +
+    ' · 配置来源 ' + state.confFrom;
+}
+
+async function apply(value) {
+  if (VALUES.indexOf(value) < 0) { return; }
+  var r = await apiExec(MOD + '/switch ' + value);
+  if (r.errno === 0) {
+    var w = await apiExec('{ echo "enabled=1"; echo "TYPE=' + value + '"; } > ' + EXT);
+    apiToast(w.errno === 0 ? '已切换到 ' + value + '（已持久化）' : '切换成功，但持久化失败');
+  } else {
+    apiToast('切换失败：' + ((r.stderr || r.stdout || '').trim() || ('errno ' + r.errno)));
+  }
+  refresh();
+}
+
+async function toggleAuto() {
+  var next = state.enabled === 1 ? 0 : 1;
+  var t = state.type === '(未配置)' ? 'userdebug' : state.type;
+  var r = await apiExec('{ echo "enabled=' + next + '"; echo "TYPE=' + t + '"; } > ' + EXT);
+  apiToast(r.errno === 0
+    ? (next ? '开机自动已开启（' + t + '）' : '开机自动已关闭')
+    : '写入失败：' + (r.stderr || '').trim());
+  refresh();
+}
+
+document.querySelectorAll('#seg button').forEach(function (b) {
+  b.addEventListener('click', function () { apply(b.dataset.v); });
+});
+$('auto').addEventListener('click', toggleAuto);
+
+$('repo').addEventListener('click', function (e) {
+  e.preventDefault();
+  apiExec("am start -a android.intent.action.VIEW -d '" + REPO + "'").then(function (r) {
+    if (r.errno !== 0) { apiToast('打开失败：' + (r.stderr || '').trim()); }
+  });
+});
+
+if (ksu && ksu.enableEdgeToEdge) { try { ksu.enableEdgeToEdge(true); } catch (e) {} }
+
+refresh();
+</script>
+</body>
+</html>
